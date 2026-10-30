@@ -1,37 +1,150 @@
 'use strict';
-// Datos aportados por el usuario. Km 39 y 109: aforos completos de 24 h.
+// Datos fuente: aforos de 24 h informados para km 39 y 109; intervalos para km 120.
 const measured={39:[19,404,53,23,29,125,45,0,6],109:[12,668,54,45,71,192,83,1,0]};
-// Km 120: seis relevamientos parciales. Las horas nocturnas cruzan medianoche.
 const intervals=[
- {date:'28/10',time:'16:56–20:26',hours:3.5,period:'day',v:[5,156,4,17,17,119,85,1,1]},
- {date:'28–29/10',time:'23:10–04:45',hours:5+35/60,period:'night',v:[3,12,5,23,9,52,14,6,4]},
- {date:'29/10',time:'09:00–12:30',hours:3.5,period:'day',v:[5,184,16,15,13,103,68,1,0]},
- {date:'29/10',time:'14:52–20:22',hours:5.5,period:'day',v:[5,284,23,22,25,172,127,0,3]},
- {date:'29–30/10',time:'23:40–04:40',hours:5,period:'night',v:[0,13,6,9,17,23,5,3,2]},
- {date:'30/10',time:'09:20–12:10',hours:2+50/60,period:'day',v:[3,206,21,9,5,65,51,0,0]}
+ {start:'16:56',end:'20:26',v:[5,156,4,17,17,119,85,1,1]},
+ {start:'23:10',end:'04:45',v:[3,12,5,23,9,52,14,6,4]},
+ {start:'09:00',end:'12:30',v:[5,184,16,15,13,103,68,1,0]},
+ {start:'14:52',end:'20:22',v:[5,284,23,22,25,172,127,0,3]},
+ {start:'23:40',end:'04:40',v:[0,13,6,9,17,23,5,3,2]},
+ {start:'09:20',end:'12:10',v:[3,206,21,9,5,65,51,0,0]}
 ];
-const cats=[['Motocicletas','Motocicletas'],['Livianos','Hasta 2 ejes, altura hasta 2,30 m, rueda doble según cuadro'],['Dos ejes altos / tres bajos','2 ejes de más de 2,30 m con rueda doble; o 3 ejes de menos de 2,30 m'],['Tres ejes altos','3 ejes de más de 2,30 m con rueda doble'],['Cuatro ejes','Vehículos de 4 ejes'],['Cinco ejes','Vehículos de 5 ejes'],['Seis ejes','Vehículos de 6 ejes'],['Siete ejes','Vehículos de 7 ejes'],['Ocho o más ejes','Vehículos de 8 o más ejes']];
+const cats=[['Motocicletas','Motocicletas'],['Livianos','Hasta 2 ejes y hasta 2,30 m de altura'],['Dos ejes altos / tres bajos','Dos ejes de más de 2,30 m o tres ejes bajos'],['Tres ejes altos','Tres ejes de más de 2,30 m'],['Cuatro ejes','Vehículos de 4 ejes'],['Cinco ejes','Vehículos de 5 ejes'],['Seis ejes','Vehículos de 6 ejes'],['Siete ejes','Vehículos de 7 ejes'],['Ocho o más ejes','Vehículos de 8 o más ejes']];
 const colors=['#f5a74d','#2e6ee6','#12b8bd','#8b75d7','#e77a88','#315e9f','#21a477','#a78bfa','#8793a7'];
-const sum=a=>a.reduce((s,x)=>s+x,0);const fmt=n=>Math.round(n).toLocaleString('es-AR');
-const byPeriod=p=>{const arr=intervals.filter(x=>x.period===p);return {hours:sum(arr.map(x=>x.hours)),v:Array.from({length:9},(_,i)=>sum(arr.map(x=>x.v[i])))};};
-const day=byPeriod('day'),night=byPeriod('night');
-function estimate(h){return Array.from({length:9},(_,i)=>day.v[i]/day.hours*h+night.v[i]/night.hours*(24-h));}
-function integerize(a){const target=Math.round(sum(a)),base=a.map(Math.floor),extra=target-sum(base);a.map((v,i)=>({i,f:v-Math.floor(v)})).sort((a,b)=>b.f-a.f).slice(0,extra).forEach(x=>base[x.i]++);return base;}
-let current={};let charts={};
-const point=document.querySelector('#point'),period=document.querySelector('#period');
-function createChart(id,type,labels,datasets,options={}){if(!window.Chart)return;if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},scales:type==='doughnut'?{}:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{beginAtZero:true,grid:{color:'#edf1f6'},ticks:{font:{size:10}}}},...options}});}
-function refresh(){const h=+period.value;current={39:measured[39],109:measured[109],120:integerize(estimate(h))};const sel=point.value;const vals=sel==='all'?null:current[sel];const selected=sel==='all'?[39,109,120]:[+sel];const aggregate=vals||Array.from({length:9},(_,i)=>sum(selected.map(k=>current[k][i])));const total=sum(aggregate);const heavy=sum(aggregate.slice(4));const stats=[['Tránsito seleccionado',fmt(total),'Vehículos/día · '+(sel==='all'?'suma de puntos (no flujo único)':'km '+sel)],['CAT 1',fmt(aggregate[1]),(aggregate[1]/total*100).toFixed(1).replace('.',',')+' % del total'],['CAT 4–8',fmt(heavy),(heavy/total*100).toFixed(1).replace('.',',')+' % del total'],['Categorías activas',aggregate.filter(v=>v>0).length+' / 9',sel==='120'?'Estimación, no medición de 24 h':sel==='all'?'Comparativa agregada':'Conteo real de 24 h']];document.querySelector('#kpis').innerHTML=stats.map(s=>`<div class="kpi"><div class="lab">${s[0]}</div><div class="val">${s[1]}</div><div class="sub">${s[2]}</div></div>`).join('');
- const kms=[39,109,120],barColors=kms.map(k=>k===120?'#f5a74d':'#2e6ee6');createChart('volumes','bar',kms.map(k=>'Km '+k+(k===120?'*':'')),[{label:'Vehículos/día',data:kms.map(k=>sum(current[k])),backgroundColor:barColors,borderRadius:6}],{plugins:{legend:{display:false}}});
- document.querySelector('#compositionLabel').textContent=sel==='all'?'Suma de puntos (solo composición)':`Km ${sel}${sel==='120'?' · estimado':''}`;createChart('composition','doughnut',cats.map((_,i)=>'CAT '+i),[{data:aggregate,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}],{cutout:'65%'});
- createChart('grouped','bar',cats.map((_,i)=>'CAT '+i),kms.map((k,i)=>({label:'Km '+k+(k===120?'*':''),data:current[k],backgroundColor:barColors[i],borderRadius:3})));createChart('stacked','bar',kms.map(k=>'Km '+k+(k===120?'*':'')),cats.map((_,i)=>({label:'CAT '+i,data:kms.map(k=>current[k][i]/sum(current[k])*100),backgroundColor:colors[i]})),{indexAxis:'y',scales:{x:{stacked:true,max:100,ticks:{callback:v=>v+'%'}},y:{stacked:true}},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.raw.toFixed(1)+' %'}}}});
- createChart('heavy','bar',kms.map(k=>'Km '+k+(k===120?'*':'')),[{label:'CAT 4–8',data:kms.map(k=>sum(current[k].slice(4))),backgroundColor:'#13a9bd',borderRadius:5}],{plugins:{legend:{display:false}}});createChart('intervals','bar',intervals.map(x=>x.date+' '+x.time),[{label:'Vehículos/hora',data:intervals.map(x=>sum(x.v)/x.hours),backgroundColor:intervals.map(x=>x.period==='day'?'#2e6ee6':'#8b75d7'),borderRadius:4}],{plugins:{legend:{display:false}}},});
- document.querySelector('#dataTable tbody').innerHTML=kms.map(k=>`<tr><td>Km ${k}</td><td>${k===120?'Estimado':'Medido (24 h)'}</td>${current[k].map(v=>`<td>${fmt(v)}</td>`).join('')}<td><strong>${fmt(sum(current[k]))}</strong></td></tr>`).join('');}
-point.addEventListener('change',refresh);period.addEventListener('change',refresh);refresh();
-document.querySelector('#categoryCards').innerHTML=cats.map((c,i)=>`<div class="cat"><div class="catnumber">${i}</div><div><div class="catname">${c[0]}</div><div class="catdesc">${c[1]}</div></div></div>`).join('');
-document.querySelector('#export').addEventListener('click',()=>{const rows=[['Km','Condición',...cats.map((_,i)=>'CAT '+i),'Total'],...[39,109,120].map(k=>[k,k===120?'Estimado':'Medido',...current[k],sum(current[k])])];const csv='\uFEFF'+rows.map(r=>r.join(';')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='rp6_conteos_por_categoria.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
-// Los puntos no se ubican automáticamente porque no se aportaron coordenadas verificadas.
-if(window.L){const map=L.map('map').setView([-31.5,-59.1],8);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);let saved={};try{saved=JSON.parse(localStorage.getItem('rp6-map-points')||'{}')}catch(e){}const markers={};const draw=()=>{Object.values(markers).forEach(m=>map.removeLayer(m));Object.keys(markers).forEach(k=>delete markers[k]);for(const [k,p] of Object.entries(saved)){markers[k]=L.marker(p).addTo(map).bindPopup(`<strong>RP 6 · Km ${k}</strong><br>${fmt(sum(current[k]))} veh./día${k==='120'?' (estimado)':''}`);}};draw();map.on('click',e=>{const k=document.querySelector('#mapPoint').value;saved[k]=[e.latlng.lat,e.latlng.lng];localStorage.setItem('rp6-map-points',JSON.stringify(saved));draw();document.querySelector('#mapStatus').textContent=`Km ${k}: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)} · guardado`;});document.querySelector('#clearMap').onclick=()=>{const k=document.querySelector('#mapPoint').value;delete saved[k];localStorage.setItem('rp6-map-points',JSON.stringify(saved));draw();document.querySelector('#mapStatus').textContent=`Ubicación del km ${k} eliminada`;};}else{document.querySelector('#map').innerHTML='<p style="padding:25px">Conectate a internet para cargar el mapa interactivo.</p>';}
-if (!window.Chart) {
-  alert('No se pudo cargar Chart.js. Abrí el tablero con conexión a internet para ver los gráficos.');
+const sum=a=>a.reduce((s,x)=>s+x,0),fmt=n=>Math.round(n).toLocaleString('es-AR');
+const mins=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+function overlap(a,b,c,d){return Math.max(0,Math.min(b,d)-Math.max(a,c));}
+function integerize(values){const target=Math.round(sum(values));const base=values.map(Math.floor);let missing=target-sum(base);values.map((v,i)=>({i,frac:v-Math.floor(v)})).sort((a,b)=>b.frac-a.frac).slice(0,missing).forEach(x=>base[x.i]++);return base;}
+function compute120(){
+ const observed={day:{minutes:0,v:Array(9).fill(0)},night:{minutes:0,v:Array(9).fill(0)}};
+ for(const r of intervals){let a=mins(r.start),b=mins(r.end);if(b<=a)b+=1440;
+  let dayMinutes=0;for(const shift of [-1440,0,1440])dayMinutes+=overlap(a,b,360+shift,1170+shift);
+  const nightMinutes=b-a-dayMinutes;
+  for(const [key,part] of [['day',dayMinutes],['night',nightMinutes]]){
+   observed[key].minutes+=part;
+   r.v.forEach((v,i)=>observed[key].v[i]+=v*part/(b-a));
+  }
+ }
+ const rawDay=observed.day.v.map(v=>v/observed.day.minutes*810);
+ const rawNight=observed.night.v.map(v=>v/observed.night.minutes*630);
+ // Fijar total y composición diaria: redondear el total una sola vez.
+ const full=integerize(rawDay.map((v,i)=>v+rawNight[i]));
+ const day=integerize(rawDay);
+ const night=full.map((v,i)=>v-day[i]);
+ return {full,day,night,observed};
 }
+const km120=compute120();
+// Intervalos adicionales transcritos del paloteo aportado (CAT 0 a CAT 8).
+// Se mantienen los totales de 24 h declarados para km 39 y 109 como base oficial del tablero.
+const additionalIntervals={
+ 39:[
+  {start:'12:35',end:'17:23',v:[5,117,11,7,12,44,10,0,4]},
+  {start:'04:20',end:'12:35',v:[7,180,26,3,10,24,12,0,2]}
+ ],
+ 109:[
+  {start:'17:00',end:'23:59',v:[5,193,12,14,14,65,30,0,0]},
+  {start:'00:00',end:'09:30',v:[4,162,18,14,17,45,11,0,0]},
+  {start:'09:30',end:'17:23',v:[3,313,24,17,40,82,42,1,0]},
+  {start:'17:25',end:'04:20',v:[7,107,16,13,7,57,23,0,0]}
+ ]
+};
+function splitUsingOwnIntervals(km){
+ const observed={day:{minutes:0,v:Array(9).fill(0)},night:{minutes:0,v:Array(9).fill(0)}};
+ for(const r of additionalIntervals[km]){
+  let a=mins(r.start),b=mins(r.end);if(b<=a)b+=1440;
+  let d=0;for(const shift of [-1440,0,1440])d+=overlap(a,b,360+shift,1170+shift);
+  for(const [key,part] of [['day',d],['night',b-a-d]]){
+   observed[key].minutes+=part;
+   r.v.forEach((v,i)=>observed[key].v[i]+=v*part/(b-a));
+  }
+ }
+ const full=measured[km].slice();
+ // Repartir el total medido entre franjas usando la composición horaria
+ // de los propios intervalos del km. No se atribuye precisión horaria inexistente.
+ const day=full.map((v,i)=>{
+  const d=observed.day.v[i]/observed.day.minutes*810;
+  const n=observed.night.v[i]/observed.night.minutes*630;
+  return Math.min(v,Math.max(0,Math.round(v*(d+n>0?d/(d+n):810/1440))));
+ });
+ return {full,day,night:full.map((v,i)=>v-day[i]),observed};
 }
+const data={120:km120,39:splitUsingOwnIntervals(39),109:splitUsingOwnIntervals(109)};
+const chartMap={};
+const point=document.getElementById('point'),period=document.getElementById('period');
+function selectedRows(){return [39,109,120].map(k=>({km:k,v:data[k][period.value]}));}
+function createChart(id,type,labels,datasets,options={}){
+ if(!window.Chart)return;
+ if(chartMap[id])chartMap[id].destroy();
+ const el=document.getElementById(id);if(!el)return;
+ chartMap[id]=new Chart(el,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:11}}},scales:type==='doughnut'?{}:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#eef2f7'}}},...options}});
+}
+function refresh(){
+ const rows=selectedRows(),sel=point.value,active=sel==='all'?rows:rows.filter(r=>String(r.km)===sel);
+ const aggregate=Array.from({length:9},(_,i)=>sum(active.map(r=>r.v[i])));
+ const total=sum(aggregate),groups=[sum(aggregate.slice(0,3)),aggregate[3],sum(aggregate.slice(4))];
+ const sub=sel==='all'?'Suma de progresivas, no flujo único':`Km ${sel}`;
+ const items=[['Vehículos',fmt(total),sub],['Livianos y semilivianos',fmt(groups[0]),'CAT 0–2 · '+(total?fmt(groups[0]/total*100):0)+' %'],['Semipesados',fmt(groups[1]),'CAT 3'],['Pesados',fmt(groups[2]),'CAT 4–8']];
+ document.getElementById('kpis').innerHTML=items.map(s=>`<div class="kpi"><div class="lab">${s[0]}</div><div class="val">${s[1]}</div><div class="sub">${s[2]}</div></div>`).join('');
+ document.getElementById('volumeNote').textContent=period.value==='full'?'24 horas':period.value==='day'?'06:00–19:30':'19:30–06:00';
+ document.getElementById('compositionLabel').textContent=sel==='all'?'Suma comparativa':`Km ${sel}`;
+ const labels=rows.map(r=>'Km '+r.km),palette=rows.map(r=>r.km===120?'#e69c3b':'#3169db');
+ createChart('volumes','bar',labels,[{label:'Vehículos',data:rows.map(r=>sum(r.v)),backgroundColor:palette,borderRadius:7}],{plugins:{legend:{display:false}}});
+ createChart('composition','doughnut',cats.map((_,i)=>'CAT '+i),[{data:aggregate,backgroundColor:colors,borderColor:'#fff',borderWidth:2}],{cutout:'65%'});
+ createChart('grouped','bar',cats.map((_,i)=>'CAT '+i),rows.map((r,i)=>({label:'Km '+r.km,data:r.v,backgroundColor:palette[i],borderRadius:3})));
+ createChart('stacked','bar',labels,cats.map((_,i)=>({label:'CAT '+i,data:rows.map(r=>sum(r.v)?r.v[i]/sum(r.v)*100:0),backgroundColor:colors[i]})),{indexAxis:'y',scales:{x:{stacked:true,max:100,ticks:{callback:v=>v+'%'}},y:{stacked:true}},plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toFixed(1)+' %'}}}});
+ createChart('groups','bar',labels,[{label:'Livianos y semilivianos · CAT 0–2',data:rows.map(r=>sum(r.v.slice(0,3))),backgroundColor:'#3169db'},{label:'Semipesados · CAT 3',data:rows.map(r=>r.v[3]),backgroundColor:'#8b75d7'},{label:'Pesados · CAT 4–8',data:rows.map(r=>sum(r.v.slice(4))),backgroundColor:'#16a085'}],{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}});
+ createChart('heavy','bar',labels,[{label:'Pesados',data:rows.map(r=>sum(r.v.slice(4))),backgroundColor:'#16a085',borderRadius:6}],{plugins:{legend:{display:false}}});
+ document.querySelector('#dataTable tbody').innerHTML=rows.map(r=>`<tr><td>Km ${r.km}</td><td>${r.km===120?'Proyección':'Aforo 24 h'}${period.value==='full'?'':' · franja estimada desde intervalos propios'}</td>${r.v.map(x=>`<td>${fmt(x)}</td>`).join('')}<td>${fmt(sum(r.v))}</td></tr>`).join('');
+ updateMapLabels();
+}
+function vehicleSVG(i){
+ // Siluetas ilustrativas vectoriales según cantidad de ejes.
+ const wheels=i===0?2:i===1?2:i===2?3:i===3?3:i;
+ if(i===0)return `<svg viewBox="0 0 120 70" role="img" aria-label="Motocicleta"><g fill="none" stroke="#25364d" stroke-width="3"><circle cx="27" cy="49" r="11"/><circle cx="91" cy="49" r="11"/><path d="M27 49L47 28L68 49H91L74 22H61M47 28L58 49L27 49M68 49L80 34"/></g></svg>`;
+ const n=Math.min(wheels,8),length=104,first=18,step=(length-30)/(n-1);
+ const tires=Array.from({length:n},(_,j)=>`<circle cx="${(first+j*step).toFixed(1)}" cy="55" r="5.5" fill="#25364d"/>`).join('');
+ if(i===1)return `<svg viewBox="0 0 120 70" role="img" aria-label="Automóvil"><path d="M10 44L18 35L35 31L47 20H76L88 33H103L110 44V53H10Z" fill="#25364d"/><path d="M47 24H73L81 34H38Z" fill="#dce8f8"/>${tires}</svg>`;
+ return `<svg viewBox="0 0 120 70" role="img" aria-label="Vehículo de ${i===8?'ocho o más':i} ejes"><rect x="8" y="23" width="${i>=5?74:61}" height="28" rx="2" fill="#25364d"/><path d="M${i>=5?82:69} 34H99L109 44V51H${i>=5?82:69}Z" fill="#25364d"/><rect x="91" y="37" width="9" height="7" fill="#dce8f8"/>${tires}</svg>`;
+}
+document.getElementById('categoryCards').innerHTML=cats.map((c,i)=>`<div class="category-card"><div class="category-art">${vehicleSVG(i)}</div><div><div class="catnum">CATEGORÍA ${i}</div><div class="catname">${c[0]}</div><div class="catdesc">${c[1]}</div></div></div>`).join('');
+point.addEventListener('change',refresh);period.addEventListener('change',refresh);
+document.getElementById('export').addEventListener('click',()=>{
+ const rows=[['Km','Franja','Origen',...cats.map((_,i)=>'CAT '+i),'Total'],...selectedRows().map(r=>[r.km,period.value,r.km===120?'Proyección':'Aforo 24 h',...r.v,sum(r.v)])];
+ const csv='\uFEFF'+rows.map(r=>r.join(';')).join('\r\n'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='rp6_conteos.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+let map=null;
+const markers={};
+const fixedPoints={'39':[-31.119232100492237,-59.34792374521982],'109':[-31.72100222948659,-59.181135179389784],'120':[-31.813300025981913,-59.17049075165788]};
+const mapPoint=document.getElementById('mapPoint');
+function updateMapLabels(){
+ if(!map)return;
+ for(const [km,marker] of Object.entries(markers)){
+  const values=data[km][period.value];
+  const light=sum(values.slice(0,3)),medium=values[3],heavy=sum(values.slice(4));
+  marker.bindPopup(`<div class="map-popup"><strong>RP 6 · Km ${km}</strong><div>${period.options[period.selectedIndex].text}</div><b>${fmt(sum(values))} vehículos</b><div>Livianos y semilivianos (CAT 0–2): ${fmt(light)}</div><div>Semipesados (CAT 3): ${fmt(medium)}</div><div>Pesados (CAT 4–8): ${fmt(heavy)}</div><small>${km==='120'?'Proyección a 24 h':'Aforo de 24 h'} · franjas estimadas desde intervalos</small></div>`);
+ }
+}
+function filterMap(){
+ if(!map)return;
+ const selected=mapPoint.value;
+ const visible=[];
+ for(const [km,marker] of Object.entries(markers)){
+  if(selected==='all'||selected===km){marker.addTo(map);visible.push(marker.getLatLng());}
+  else map.removeLayer(marker);
+ }
+ if(selected==='all' && visible.length>1)map.fitBounds(L.latLngBounds(visible).pad(.22),{animate:false,maxZoom:11});
+ else if(visible.length)map.setView(visible[0],12,{animate:false});
+ setTimeout(()=>map.invalidateSize(),60);
+}
+if(window.L){
+ map=L.map('mapView',{scrollWheelZoom:false}).setView([-31.48,-59.26],9);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+ for(const [km,coords] of Object.entries(fixedPoints))markers[km]=L.marker(coords,{title:`RP 6 · Km ${km}`});
+ updateMapLabels();filterMap();
+ mapPoint.addEventListener('change',filterMap);
+ window.addEventListener('resize',()=>map.invalidateSize());
+}else{
+ document.getElementById('mapView').innerHTML='<p class="map-fallback">Se necesita conexión a Internet para cargar Leaflet y el mapa.</p>';
+}
+refresh();
+if(!window.Chart)document.getElementById('volumeNote').textContent='No se pudo cargar Chart.js. Verificá tu conexión.';
