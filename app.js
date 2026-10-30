@@ -34,3 +34,4 @@ if(window.L){const map=L.map('map').setView([-31.5,-59.1],8);L.tileLayer('https:
 if (!window.Chart) {
   alert('No se pudo cargar Chart.js. Abrí el tablero con conexión a internet para ver los gráficos.');
 }
+}
