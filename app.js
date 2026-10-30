@@ -10,6 +10,7 @@ const intervals=[
  {start:'09:20',end:'12:10',v:[3,206,21,9,5,65,51,0,0]}
 ];
 const cats=[['Motocicletas','Motocicletas'],['Livianos','Hasta 2 ejes y hasta 2,30 m de altura'],['Dos ejes altos / tres bajos','Dos ejes de más de 2,30 m o tres ejes bajos'],['Tres ejes altos','Tres ejes de más de 2,30 m'],['Cuatro ejes','Vehículos de 4 ejes'],['Cinco ejes','Vehículos de 5 ejes'],['Seis ejes','Vehículos de 6 ejes'],['Siete ejes','Vehículos de 7 ejes'],['Ocho o más ejes','Vehículos de 8 o más ejes']];
+const pointColors={'39':'#2563eb','109':'#10a37f','120':'#e69c3b'};
 const colors=['#f5a74d','#2e6ee6','#12b8bd','#8b75d7','#e77a88','#315e9f','#21a477','#a78bfa','#8793a7'];
 const sum=a=>a.reduce((s,x)=>s+x,0),fmt=n=>Math.round(n).toLocaleString('es-AR');
 const mins=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
@@ -81,19 +82,19 @@ function createChart(id,type,labels,datasets,options={}){
 function refresh(){
  const rows=selectedRows(),sel=point.value,active=sel==='all'?rows:rows.filter(r=>String(r.km)===sel);
  const aggregate=Array.from({length:9},(_,i)=>sum(active.map(r=>r.v[i])));
- const total=sum(aggregate),groups=[sum(aggregate.slice(0,3)),aggregate[3],sum(aggregate.slice(4))];
+ const total=sum(aggregate),groups=[sum(aggregate.slice(0,3)),sum(aggregate.slice(3,5)),sum(aggregate.slice(5))];
  const sub=sel==='all'?'Suma de progresivas, no flujo único':`Km ${sel}`;
- const items=[['Vehículos',fmt(total),sub],['Livianos y semilivianos',fmt(groups[0]),'CAT 0–2 · '+(total?fmt(groups[0]/total*100):0)+' %'],['Semipesados',fmt(groups[1]),'CAT 3'],['Pesados',fmt(groups[2]),'CAT 4–8']];
+ const items=[['Vehículos',fmt(total),sub],['Livianos y semilivianos',fmt(groups[0]),'CAT 0–2 · '+(total?fmt(groups[0]/total*100):0)+' %'],['Semipesados',fmt(groups[1]),'CAT 3–4'],['Pesados',fmt(groups[2]),'CAT 5–8']];
  document.getElementById('kpis').innerHTML=items.map(s=>`<div class="kpi"><div class="lab">${s[0]}</div><div class="val">${s[1]}</div><div class="sub">${s[2]}</div></div>`).join('');
  document.getElementById('volumeNote').textContent=period.value==='full'?'24 horas':period.value==='day'?'06:00–19:30':'19:30–06:00';
  document.getElementById('compositionLabel').textContent=sel==='all'?'Suma comparativa':`Km ${sel}`;
- const labels=rows.map(r=>'Km '+r.km),palette=rows.map(r=>r.km===120?'#e69c3b':'#3169db');
+ const labels=rows.map(r=>'Km '+r.km),palette=rows.map(r=>pointColors[r.km]);
  createChart('volumes','bar',labels,[{label:'Vehículos',data:rows.map(r=>sum(r.v)),backgroundColor:palette,borderRadius:7}],{plugins:{legend:{display:false}}});
  createChart('composition','doughnut',cats.map((_,i)=>'CAT '+i),[{data:aggregate,backgroundColor:colors,borderColor:'#fff',borderWidth:2}],{cutout:'65%'});
  createChart('grouped','bar',cats.map((_,i)=>'CAT '+i),rows.map((r,i)=>({label:'Km '+r.km,data:r.v,backgroundColor:palette[i],borderRadius:3})));
  createChart('stacked','bar',labels,cats.map((_,i)=>({label:'CAT '+i,data:rows.map(r=>sum(r.v)?r.v[i]/sum(r.v)*100:0),backgroundColor:colors[i]})),{indexAxis:'y',scales:{x:{stacked:true,max:100,ticks:{callback:v=>v+'%'}},y:{stacked:true}},plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toFixed(1)+' %'}}}});
- createChart('groups','bar',labels,[{label:'Livianos y semilivianos · CAT 0–2',data:rows.map(r=>sum(r.v.slice(0,3))),backgroundColor:'#3169db'},{label:'Semipesados · CAT 3',data:rows.map(r=>r.v[3]),backgroundColor:'#8b75d7'},{label:'Pesados · CAT 4–8',data:rows.map(r=>sum(r.v.slice(4))),backgroundColor:'#16a085'}],{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}});
- createChart('heavy','bar',labels,[{label:'Pesados',data:rows.map(r=>sum(r.v.slice(4))),backgroundColor:'#16a085',borderRadius:6}],{plugins:{legend:{display:false}}});
+ createChart('groups','bar',labels,[{label:'Livianos y semilivianos · CAT 0–2',data:rows.map(r=>sum(r.v.slice(0,3))),backgroundColor:'#3169db'},{label:'Semipesados · CAT 3–4',data:rows.map(r=>sum(r.v.slice(3,5))),backgroundColor:'#8b75d7'},{label:'Pesados · CAT 5–8',data:rows.map(r=>sum(r.v.slice(5))),backgroundColor:'#16a085'}],{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}});
+ createChart('heavy','bar',labels,[{label:'Pesados',data:rows.map(r=>sum(r.v.slice(5))),backgroundColor:'#16a085',borderRadius:6}],{plugins:{legend:{display:false}}});
  document.querySelector('#dataTable tbody').innerHTML=rows.map(r=>`<tr><td>Km ${r.km}</td><td>${r.km===120?'Proyección':'Aforo 24 h'}${period.value==='full'?'':' · franja estimada desde intervalos propios'}</td>${r.v.map(x=>`<td>${fmt(x)}</td>`).join('')}<td>${fmt(sum(r.v))}</td></tr>`).join('');
  updateMapLabels();
 }
@@ -120,8 +121,8 @@ function updateMapLabels(){
  if(!map)return;
  for(const [km,marker] of Object.entries(markers)){
   const values=data[km][period.value];
-  const light=sum(values.slice(0,3)),medium=values[3],heavy=sum(values.slice(4));
-  marker.bindPopup(`<div class="map-popup"><strong>RP 6 · Km ${km}</strong><div>${period.options[period.selectedIndex].text}</div><b>${fmt(sum(values))} vehículos</b><div>Livianos y semilivianos (CAT 0–2): ${fmt(light)}</div><div>Semipesados (CAT 3): ${fmt(medium)}</div><div>Pesados (CAT 4–8): ${fmt(heavy)}</div><small>${km==='120'?'Proyección a 24 h':'Aforo de 24 h'} · franjas estimadas desde intervalos</small></div>`);
+  const light=sum(values.slice(0,3)),medium=sum(values.slice(3,5)),heavy=sum(values.slice(5));
+  marker.bindPopup(`<div class="map-popup"><strong>RP 6 · Km ${km}</strong><div>${period.options[period.selectedIndex].text}</div><b>${fmt(sum(values))} vehículos</b><div>Livianos y semilivianos (CAT 0–2): ${fmt(light)}</div><div>Semipesados (CAT 3–4): ${fmt(medium)}</div><div>Pesados (CAT 5–8): ${fmt(heavy)}</div><small>${km==='120'?'Proyección a 24 h':'Aforo de 24 h'} · franjas estimadas desde intervalos</small></div>`);
  }
 }
 function filterMap(){
@@ -139,7 +140,7 @@ function filterMap(){
 if(window.L){
  map=L.map('mapView',{scrollWheelZoom:false}).setView([-31.48,-59.26],9);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
- for(const [km,coords] of Object.entries(fixedPoints))markers[km]=L.marker(coords,{title:`RP 6 · Km ${km}`});
+ for(const [km,coords] of Object.entries(fixedPoints))markers[km]=L.circleMarker(coords,{radius:10,color:'#ffffff',weight:2,fillColor:pointColors[km],fillOpacity:1,title:`RP 6 · Km ${km}`});
  updateMapLabels();filterMap();
  mapPoint.addEventListener('change',filterMap);
  window.addEventListener('resize',()=>map.invalidateSize());
