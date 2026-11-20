@@ -34,7 +34,33 @@ function compute120(){
  const night=full.map((v,i)=>v-day[i]);
  return {full,day,night,observed};
 }
-const km120=compute120();
+
+const estimacionOriginal120 = compute120();
+
+// Tránsito diario estimado fijo para el km 120
+const totalFijo120 = [
+  20, 849, 73, 74, 68, 456, 302, 8, 8
+];
+
+// Mantener la proporción diurna/nocturna por categoría
+const diurno120 = totalFijo120.map((cantidad, i) => {
+  const totalOriginal = estimacionOriginal120.full[i];
+  const proporcionDiurna = totalOriginal > 0
+    ? estimacionOriginal120.day[i] / totalOriginal
+    : 810 / 1440;
+
+  return Math.round(cantidad * proporcionDiurna);
+});
+
+const km120 = {
+  full: totalFijo120,
+  day: diurno120,
+  night: totalFijo120.map((cantidad, i) =>
+    cantidad - diurno120[i]
+  ),
+  observed: estimacionOriginal120.observed
+};
+
 // Intervalos adicionales transcritos del paloteo aportado (CAT 0 a CAT 8).
 // Se mantienen los totales de 24 h declarados para km 39 y 109 como base oficial del tablero.
 const additionalIntervals={
